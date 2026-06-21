@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discord Quest Completer</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="titlebar">
+        <div class="titlebar-left">
+            <h1 class="title">Discord Quest Completer</h1>
+        </div>
+        <div class="titlebar-right">
+            <div class="user-pill" id="userPill">Not connected</div>
+        </div>
+    </div>
+    <div class="divider-h"></div>
+
+    <div class="body-wrap">
+        <div class="left-panel">
+            <div class="section-label">TOKEN</div>
+            <div class="token-wrap">
+                <input type="password" id="tokenInput" class="token-input" placeholder="Paste your token here..." autocomplete="off">
+            </div>
+            <div class="btn-row">
+                <button class="btn ghost" id="showBtn" onclick="toggleToken()">Show</button>
+                <button class="btn primary" id="connectBtn" onclick="doConnect()">Connect</button>
+            </div>
+
+            <div class="spacer-8"></div>
+            <div class="divider-h"></div>
+            <div class="spacer-8"></div>
+
+            <div class="section-label">STATISTICS</div>
+            <div class="stat-row"><span class="stat-label">Total quests</span><span class="stat-value" id="statTotal">—</span></div>
+            <div class="stat-row"><span class="stat-label">Available</span><span class="stat-value" id="statAvail">—</span></div>
+            <div class="stat-row"><span class="stat-label">Completed</span><span class="stat-value" id="statDone">—</span></div>
+
+            <div class="flex-grow"></div>
+            <div class="divider-h"></div>
+            <div class="spacer-8"></div>
+
+            <div class="section-label">SELECTION</div>
+            <div class="spacer-4"></div>
+            <div class="btn-row">
+                <button class="btn ghost" onclick="selectAll()">Select All</button>
+                <button class="btn ghost" onclick="deselectAll()">Clear</button>
+            </div>
+            <button class="btn ghost full-w" id="refreshBtn" onclick="doRefresh()">Refresh Quests</button>
+        </div>
+
+        <div class="divider-v"></div>
+
+        <div class="right-panel">
+            <div class="section-header">
+                <div class="section-label" id="questHeader">QUESTS</div>
+            </div>
+            <div class="quest-scroll" id="questScroll">
+                <div class="empty-msg" id="emptyMsg">Connect and refresh to load quests.</div>
+            </div>
+            <div class="divider-h"></div>
+            <div class="section-header">
+                <div class="section-label">LOG</div>
+            </div>
+            <div class="log-box" id="logBox"></div>
+        </div>
+    </div>
+
+    <div class="divider-h"></div>
+
+    <div class="statusbar">
+        <div class="statusbar-left">
+            <span class="status-dot" id="statusDot">●</span>
+            <span class="status-text" id="statusText">Idle</span>
+        </div>
+        <div class="statusbar-right">
+            <button class="btn ghost small" onclick="clearLog()">Clear Log</button>
+            <button class="btn danger small" id="stopBtn" onclick="doStop()" disabled>Stop</button>
+            <button class="btn primary small" id="startBtn" onclick="doStart()" disabled>Run Selected</button>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
