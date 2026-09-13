@@ -3,85 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Discord Quest Completer</title>
+    <title>Discord Quest Engine</title>
     <link rel="stylesheet" href="/static/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="titlebar">
-        <div class="titlebar-left">
-            <h1 class="title">Discord Quest Completer</h1>
-        </div>
-        <div class="titlebar-right">
-            <div class="user-pill" id="userPill">Not connected</div>
-        </div>
-    </div>
-    <div class="divider-h"></div>
-
-    <div class="body-wrap">
-        <div class="left-panel">
-            <div class="section-label">TOKEN</div>
-            <div class="token-wrap">
-                <input type="password" id="tokenInput" class="token-input" placeholder="Paste your token here..." autocomplete="off">
+    <header class="topbar">
+        <div class="brand-wrapper">
+            <div class="brand-icon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                </svg>
             </div>
-            <div class="btn-row">
-                <button class="btn ghost" id="showBtn" onclick="toggleToken()">Show</button>
-                <button class="btn primary" id="connectBtn" onclick="doConnect()">Connect</button>
+            <div class="brand-title">
+                Quest Automator <span class="badge-version">v2.1.0</span>
             </div>
-
-            <div class="spacer-8"></div>
-            <div class="divider-h"></div>
-            <div class="spacer-8"></div>
-
-            <div class="section-label">STATISTICS</div>
-            <div class="stat-row"><span class="stat-label">Total quests</span><span class="stat-value" id="statTotal">—</span></div>
-            <div class="stat-row"><span class="stat-label">Available</span><span class="stat-value" id="statAvail">—</span></div>
-            <div class="stat-row"><span class="stat-label">Completed</span><span class="stat-value" id="statDone">—</span></div>
-
-            <div class="flex-grow"></div>
-            <div class="divider-h"></div>
-            <div class="spacer-8"></div>
-
-            <div class="section-label">SELECTION</div>
-            <div class="spacer-4"></div>
-            <div class="btn-row">
-                <button class="btn ghost" onclick="selectAll()">Select All</button>
-                <button class="btn ghost" onclick="deselectAll()">Clear</button>
-            </div>
-            <button class="btn ghost full-w" id="refreshBtn" onclick="doRefresh()">Refresh Quests</button>
         </div>
-
-        <div class="divider-v"></div>
-
-        <div class="right-panel">
-            <div class="section-header">
-                <div class="section-label" id="questHeader">QUESTS</div>
-            </div>
-            <div class="quest-scroll" id="questScroll">
-                <div class="empty-msg" id="emptyMsg">Connect and refresh to load quests.</div>
-            </div>
-            <div class="divider-h"></div>
-            <div class="section-header">
-                <div class="section-label">LOG</div>
-            </div>
-            <div class="log-box" id="logBox"></div>
+        <div class="topbar-right">
+            <div class="user-badge" id="userPill">Offline</div>
         </div>
-    </div>
+    </header>
 
-    <div class="divider-h"></div>
+    <main class="layout-main">
+        <aside class="sidebar">
+            <div class="field-group">
+                <div class="section-label">AUTHENTICATION</div>
+                <div class="input-container">
+                    <input type="password" id="tokenInput" class="input-text" placeholder="Discord User Token" autocomplete="off" spellcheck="false">
+                </div>
+                <div class="button-grid">
+                    <button class="btn btn-outline" id="showBtn" onclick="toggleToken()">Show</button>
+                    <button class="btn btn-primary" id="connectBtn" onclick="doConnect()">Connect</button>
+                </div>
+            </div>
 
-    <div class="statusbar">
-        <div class="statusbar-left">
-            <span class="status-dot" id="statusDot">●</span>
-            <span class="status-text" id="statusText">Idle</span>
+            <div class="field-group">
+                <div class="section-label">OVERVIEW</div>
+                <div class="stats-container">
+                    <div class="stat-item">
+                        <span class="stat-title">Discovered</span>
+                        <span class="stat-digit" id="statTotal">—</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-title">Available</span>
+                        <span class="stat-digit" id="statAvail">—</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-title">Completed</span>
+                        <span class="stat-digit" id="statDone">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="flex: 1;"></div>
+
+            <div class="field-group">
+                <div class="section-label">QUICK ACTIONS</div>
+                <div class="button-grid">
+                    <button class="btn btn-outline" onclick="selectAll()">Select All</button>
+                    <button class="btn btn-outline" onclick="deselectAll()">Deselect</button>
+                </div>
+                <button class="btn btn-outline btn-full" id="refreshBtn" onclick="doRefresh()">Fetch Quests</button>
+            </div>
+        </aside>
+
+        <section class="content-area">
+            <div class="toolbar-panel">
+                <div class="section-label" id="questHeader">MISSION QUEUE</div>
+            </div>
+            
+            <div class="quest-list-wrapper" id="questScroll">
+                <div class="empty-state" id="emptyMsg">Connect your Discord token to initialize quests.</div>
+            </div>
+
+            <div class="toolbar-panel">
+                <div class="section-label">LIVE EXECUTION LOGS</div>
+            </div>
+            <div class="console-terminal" id="logBox"></div>
+        </section>
+    </main>
+
+    <footer class="bottombar">
+        <div class="system-status">
+            <div class="status-indicator-dot" id="statusDot"></div>
+            <span class="status-text-label" id="statusText">System Ready</span>
         </div>
-        <div class="statusbar-right">
-            <button class="btn ghost small" onclick="clearLog()">Clear Log</button>
-            <button class="btn danger small" id="stopBtn" onclick="doStop()" disabled>Stop</button>
-            <button class="btn primary small" id="startBtn" onclick="doStart()" disabled>Run Selected</button>
+        <div class="action-controls">
+            <button class="btn btn-outline" onclick="clearLog()">Clear</button>
+            <button class="btn btn-danger" id="stopBtn" onclick="doStop()" disabled>Abort</button>
+            <button class="btn btn-primary" id="startBtn" onclick="doStart()" disabled>Execute Missions</button>
         </div>
-    </div>
+    </footer>
 
     <script src="/static/app.js"></script>
 </body>

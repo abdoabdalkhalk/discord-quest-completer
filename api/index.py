@@ -6,7 +6,6 @@ import re
 import base64
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify, render_template
-
 import requests as http_requests
 
 app = Flask(
@@ -24,21 +23,20 @@ SUPPORTED_TASKS = [
 ]
 
 TASK_LABELS = {
-    "WATCH_VIDEO":           "Watch Video",
+    "WATCH_VIDEO": "Watch Video",
     "WATCH_VIDEO_ON_MOBILE": "Watch Video",
-    "PLAY_ON_DESKTOP":       "Play Game",
-    "STREAM_ON_DESKTOP":     "Stream",
-    "PLAY_ACTIVITY":         "Activity",
+    "PLAY_ON_DESKTOP": "Play Game",
+    "STREAM_ON_DESKTOP": "Stream",
+    "PLAY_ACTIVITY": "Activity",
 }
 
 TASK_COLORS = {
-    "WATCH_VIDEO":           "#e44d7b",
-    "WATCH_VIDEO_ON_MOBILE": "#e44d7b",
-    "PLAY_ON_DESKTOP":       "#3ba55d",
-    "STREAM_ON_DESKTOP":     "#9b59b6",
-    "PLAY_ACTIVITY":         "#f0b232",
+    "WATCH_VIDEO": "#ec4899",
+    "WATCH_VIDEO_ON_MOBILE": "#ec4899",
+    "PLAY_ON_DESKTOP": "#10b981",
+    "STREAM_ON_DESKTOP": "#8b5cf6",
+    "PLAY_ACTIVITY": "#f59e0b",
 }
-
 
 def fetch_latest_build_number():
     FALLBACK = 504649
@@ -62,7 +60,6 @@ def fetch_latest_build_number():
     except Exception:
         return FALLBACK
 
-
 def make_super_properties(build_number):
     obj = {
         "os": "Windows",
@@ -85,7 +82,6 @@ def make_super_properties(build_number):
     }
     return base64.b64encode(json.dumps(obj).encode()).decode()
 
-
 def make_headers(token, build_number):
     ua = (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -98,11 +94,10 @@ def make_headers(token, build_number):
         "User-Agent": ua,
         "X-Super-Properties": make_super_properties(build_number),
         "X-Discord-Locale": "en-US",
-        "X-Discord-Timezone": "Asia/Ho_Chi_Minh",
+        "X-Discord-Timezone": "UTC",
         "Origin": "https://discord.com",
         "Referer": "https://discord.com/channels/@me",
     }
-
 
 def _kget(d, *keys):
     if not d:
@@ -112,10 +107,8 @@ def _kget(d, *keys):
             return d[k]
     return None
 
-
 def get_task_config(q):
     return _kget(q.get("config", {}), "taskConfig", "task_config", "taskConfigV2", "task_config_v2")
-
 
 def get_quest_name(q):
     cfg = q.get("config", {})
@@ -127,15 +120,12 @@ def get_quest_name(q):
     a = cfg.get("application", {}).get("name")
     return a or f"Quest#{q.get('id', '?')}"
 
-
 def get_expires_at(q):
     return _kget(q.get("config", {}), "expiresAt", "expires_at")
-
 
 def get_user_status(q):
     us = _kget(q, "userStatus", "user_status")
     return us if isinstance(us, dict) else {}
-
 
 def is_completable(q):
     exp = get_expires_at(q)
@@ -150,14 +140,11 @@ def is_completable(q):
         return False
     return any(tc["tasks"].get(t) is not None for t in SUPPORTED_TASKS)
 
-
 def is_enrolled(q):
     return bool(_kget(get_user_status(q), "enrolledAt", "enrolled_at"))
 
-
 def is_completed(q):
     return bool(_kget(get_user_status(q), "completedAt", "completed_at"))
-
 
 def get_task_type(q):
     tc = get_task_config(q)
@@ -168,7 +155,6 @@ def get_task_type(q):
             return t
     return None
 
-
 def get_seconds_needed(q):
     tc = get_task_config(q)
     tt = get_task_type(q)
@@ -176,29 +162,25 @@ def get_seconds_needed(q):
         return 0
     return tc["tasks"][tt].get("target", 0)
 
-
 def get_seconds_done(q):
     tt = get_task_type(q)
     if not tt:
         return 0
     return (get_user_status(q).get("progress") or {}).get(tt, {}).get("value", 0)
 
-
 def get_enrolled_at(q):
     return _kget(get_user_status(q), "enrolledAt", "enrolled_at")
-
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-
 @app.route('/api/connect', methods=['POST'])
 def api_connect():
-    data = request.get_json()
+    data = request.get_json() or {}
     token = data.get('token', '').strip()
     if not token:
-        return jsonify({"ok": False, "error": "Token is empty"}), 400
+        return jsonify({"ok": False, "error": "Token is required"}), 400
 
     bn = fetch_latest_build_number()
     headers = make_headers(token, bn)
@@ -206,7 +188,7 @@ def api_connect():
     try:
         r = http_requests.get(f"{API_BASE}/users/@me", headers=headers, timeout=15)
         if r.status_code != 200:
-            return jsonify({"ok": False, "error": "Invalid token"}), 401
+            return jsonify({"ok": False, "error": "Invalid Discord token"}), 401
         user = r.json()
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -215,15 +197,16 @@ def api_connect():
         "ok": True,
         "build_number": bn,
         "user": {
-            "username": user.get("username", "?"),
+            "username": user.get("username", "Unknown"),
             "id": user.get("id", ""),
+            "avatar": user.get("avatar"),
+            "discriminator": user.get("discriminator", "0")
         },
     })
 
-
 @app.route('/api/quests', methods=['POST'])
 def api_quests():
-    data = request.get_json()
+    data = request.get_json() or {}
     token = data.get('token', '').strip()
     bn = data.get('build_number', 504649)
     headers = make_headers(token, bn)
@@ -231,7 +214,7 @@ def api_quests():
     try:
         r = http_requests.get(f"{API_BASE}/quests/@me", headers=headers, timeout=15)
         if r.status_code != 200:
-            return jsonify({"ok": False, "error": "Failed to fetch"}), 400
+            return jsonify({"ok": False, "error": "Failed to fetch quests from Discord"}), 400
         raw = r.json()
         quests = raw.get("quests", []) if isinstance(raw, dict) else (raw if isinstance(raw, list) else [])
     except Exception as e:
@@ -269,10 +252,9 @@ def api_quests():
         "available": available,
     })
 
-
 @app.route('/api/enroll', methods=['POST'])
 def api_enroll():
-    data = request.get_json()
+    data = request.get_json() or {}
     token = data.get('token', '').strip()
     bn = data.get('build_number', 504649)
     qid = data.get('quest_id')
@@ -298,10 +280,9 @@ def api_enroll():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
-
 @app.route('/api/heartbeat', methods=['POST'])
 def api_heartbeat():
-    data = request.get_json()
+    data = request.get_json() or {}
     token = data.get('token', '').strip()
     bn = data.get('build_number', 504649)
     qid = data.get('quest_id')
@@ -320,14 +301,13 @@ def api_heartbeat():
             return jsonify({"ok": False, "retry_after": r.json().get("retry_after", 10)}), 429
         if r.status_code == 200:
             return jsonify({"ok": True, "data": r.json()})
-        return jsonify({"ok": False, "status": r.status_code}), 400
+        return jsonify({"ok": False, "status": r.status_code, "error": r.text}), 400
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
-
 @app.route('/api/video-progress', methods=['POST'])
 def api_video_progress():
-    data = request.get_json()
+    data = request.get_json() or {}
     token = data.get('token', '').strip()
     bn = data.get('build_number', 504649)
     qid = data.get('quest_id')
@@ -345,10 +325,9 @@ def api_video_progress():
             return jsonify({"ok": False, "retry_after": r.json().get("retry_after", 5)}), 429
         if r.status_code == 200:
             return jsonify({"ok": True, "data": r.json()})
-        return jsonify({"ok": False, "status": r.status_code}), 400
+        return jsonify({"ok": False, "status": r.status_code, "error": r.text}), 400
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
-
 
 if os.environ.get('VERCEL'):
     application = app
