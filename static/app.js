@@ -8,38 +8,31 @@ const $ = (id) => document.getElementById(id);
 
 function toggleToken() {
     const inp = $('tokenInput');
-    const btn = $('showBtn');
-    if (inp.type === 'password') {
-        inp.type = 'text';
-        btn.textContent = 'Hide';
-    } else {
-        inp.type = 'password';
-        btn.textContent = 'Show';
-    }
+    inp.type = inp.type === 'password' ? 'text' : 'password';
 }
 
 function setStatus(text, mode) {
-    const dot = $('statusDot');
-    const lbl = $('statusText');
-    dot.className = 'status-indicator-dot';
+    const pulse = $('statusPulse');
+    const label = $('statusText');
+    pulse.className = 'dock-status-pulse';
     
-    if (mode === 'active') dot.classList.add('active');
-    else if (mode === 'busy') dot.classList.add('busy');
-    else if (mode === 'error') dot.classList.add('error');
+    if (mode === 'active') pulse.classList.add('active');
+    else if (mode === 'busy') pulse.classList.add('busy');
+    else if (mode === 'error') pulse.classList.add('error');
     
-    lbl.textContent = text;
+    label.textContent = text;
 }
 
 function addLog(msg, level = 'info') {
     const box = $('logBox');
     const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
     const line = document.createElement('div');
-    line.className = 'log-line';
+    line.className = 'log-entry';
     
     line.innerHTML = `
-        <span class="log-timestamp">[${ts}]</span>
-        <span class="log-badge ${level}">${level.toUpperCase()}</span>
-        <span>${escHtml(msg)}</span>
+        <span class="log-time">${ts}</span>
+        <span class="log-level ${level}">${level.toUpperCase()}</span>
+        <span class="log-msg">${escHtml(msg)}</span>
     `;
     
     box.appendChild(line);
@@ -63,15 +56,14 @@ function sleep(ms) {
 async function doConnect() {
     token = $('tokenInput').value.trim();
     if (!token) {
-        addLog('Authentication token is required.', 'error');
+        addLog('Token parameter missing.', 'error');
         return;
     }
 
     const btn = $('connectBtn');
     btn.disabled = true;
-    btn.textContent = 'Authenticating...';
-    setStatus('Authenticating with Discord...', 'busy');
-    addLog('Connecting to Discord Gateway...');
+    setStatus('Establishing handshake...', 'busy');
+    addLog('Connecting to Discord REST Gateway...');
 
     try {
         const res = await fetch('/api/connect', {
@@ -84,35 +76,34 @@ async function doConnect() {
         if (data.ok) {
             buildNumber = data.build_number;
             addLog(`Authenticated as ${data.user.username} (${data.user.id})`, 'ok');
-            addLog(`Active Discord Client Build: ${buildNumber}`, 'info');
+            addLog(`Client Target Build: ${buildNumber}`, 'info');
             
             const pill = $('userPill');
-            pill.textContent = data.user.username;
+            pill.querySelector('.user-name-text').textContent = data.user.username;
             pill.classList.add('connected');
             
-            setStatus('Connected to Discord', 'active');
+            setStatus('Gateway Connected', 'active');
             await doRefresh();
         } else {
-            addLog(data.error || 'Authentication rejected.', 'error');
-            setStatus('Authentication failed', 'error');
+            addLog(data.error || 'Handshake rejected.', 'error');
+            setStatus('Connection Rejected', 'error');
         }
     } catch (e) {
-        addLog(`Network exception: ${e.message}`, 'error');
-        setStatus('Connection error', 'error');
+        addLog(`Network fault: ${e.message}`, 'error');
+        setStatus('Network Fault', 'error');
     }
 
     btn.disabled = false;
-    btn.textContent = 'Connect';
 }
 
 async function doRefresh() {
     if (!token) {
-        addLog('No active session.', 'warn');
+        addLog('Session not initialized.', 'warn');
         return;
     }
     
     $('refreshBtn').disabled = true;
-    setStatus('Querying active quests...', 'busy');
+    setStatus('Synchronizing quest schema...', 'busy');
 
     try {
         const res = await fetch('/api/quests', {
@@ -130,27 +121,35 @@ async function doRefresh() {
 
             const available = data.quests.filter(q => !q.is_completed && q.is_completable);
             renderQuests(available);
-            setStatus(`Ready (${available.length} available)`, 'active');
+            setStatus(`Synced · ${available.length} executable`, 'active');
             $('startBtn').disabled = available.length === 0;
         } else {
-            addLog(data.error || 'Unable to fetch quests.', 'error');
-            setStatus('Fetch error', 'error');
+            addLog(data.error || 'Failed to parse quest schema.', 'error');
+            setStatus('Sync Failed', 'error');
         }
     } catch (e) {
-        addLog(`Fetch error: ${e.message}`, 'error');
-        setStatus('Error', 'error');
+        addLog(`Sync error: ${e.message}`, 'error');
+        setStatus('Sync Fault', 'error');
     }
 
     $('refreshBtn').disabled = false;
 }
 
 function renderQuests(quests) {
-    const c = $('questScroll');
-    c.innerHTML = '';
-    $('questHeader').textContent = `MISSION QUEUE (${quests.length})`;
+    const deck = $('questScroll');
+    deck.innerHTML = '';
+    $('questCountBadge').textContent = quests.length;
 
     if (!quests.length) {
-        c.innerHTML = '<div class="empty-state">No completable quests found.</div>';
+        deck.innerHTML = `
+            <div class="empty-state-canvas">
+                <div class="empty-icon-ring">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                </div>
+                <p class="empty-lead">All tasks completed</p>
+                <p class="empty-sub">No pending missions available for this account</p>
+            </div>
+        `;
         return;
     }
 
@@ -161,39 +160,39 @@ function renderQuests(quests) {
             try {
                 const days = Math.floor((new Date(q.expires_at) - new Date()) / 86400000);
                 if (days >= 0) {
-                    expHtml = `<span class="time-tag">· ${days}d left</span>`;
+                    expHtml = `<span class="timer-tag">· ${days}d left</span>`;
                 }
             } catch (e) {}
         }
 
         const card = document.createElement('div');
-        card.className = 'card-item';
+        card.className = 'quest-row-item';
         card.id = `card-${q.id}`;
         card.innerHTML = `
-            <input type="checkbox" checked class="checkbox-custom" id="cb-${q.id}">
-            <div class="card-meta-wrap">
-                <div class="card-title-text">${escHtml(q.name)}</div>
-                <div class="card-tags">
-                    <span class="badge-tag" style="color:${q.task_color}; border-color:${q.task_color}40">${escHtml(q.task_label)}</span>
-                    ${mins ? `<span class="time-tag">${mins} min</span>` : ''}
+            <input type="checkbox" checked class="custom-checkbox" id="cb-${q.id}">
+            <div class="quest-core">
+                <div class="quest-title-line">${escHtml(q.name)}</div>
+                <div class="quest-tags-line">
+                    <span class="type-tag" style="color:${q.task_color}; background:${q.task_color}18; border:1px solid ${q.task_color}35">${escHtml(q.task_label)}</span>
+                    ${mins ? `<span class="timer-tag">${mins} min</span>` : ''}
                     ${expHtml}
                 </div>
             </div>
-            <div class="card-metrics">
-                <span class="metric-status" id="status-${q.id}">Queued</span>
-                <div class="progress-track"><div class="progress-bar-inner" id="pbar-${q.id}"></div></div>
+            <div class="quest-aside">
+                <span class="progress-indicator-text" id="status-${q.id}">Pending</span>
+                <div class="progress-track-bg"><div class="progress-fill-bar" id="pbar-${q.id}"></div></div>
             </div>
         `;
-        c.appendChild(card);
+        deck.appendChild(card);
     });
 }
 
 function selectAll() {
-    document.querySelectorAll('.card-item input[type="checkbox"]:not(:disabled)').forEach(cb => cb.checked = true);
+    document.querySelectorAll('.quest-row-item input[type="checkbox"]:not(:disabled)').forEach(cb => cb.checked = true);
 }
 
 function deselectAll() {
-    document.querySelectorAll('.card-item input[type="checkbox"]').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.quest-row-item input[type="checkbox"]').forEach(cb => cb.checked = false);
 }
 
 function updateCardProgress(qid, done, total) {
@@ -206,24 +205,24 @@ function updateCardProgress(qid, done, total) {
     pbar.style.width = pct + '%';
 
     if (done >= total) {
-        pbar.className = 'progress-bar-inner done';
+        pbar.className = 'progress-fill-bar done';
         if (status) {
-            status.textContent = '100% Completed';
-            status.className = 'metric-status done';
+            status.textContent = 'Completed (100%)';
+            status.className = 'progress-indicator-text done';
         }
-        if (card) card.className = 'card-item done';
+        if (card) card.className = 'quest-row-item done';
         const cb = document.getElementById(`cb-${qid}`);
         if (cb) {
             cb.checked = false;
             cb.disabled = true;
         }
     } else {
-        pbar.className = 'progress-bar-inner running';
+        pbar.className = 'progress-fill-bar running';
         if (status) {
             status.textContent = `${Math.floor(done)}/${Math.floor(total)}s`;
-            status.className = 'metric-status running';
+            status.className = 'progress-indicator-text running';
         }
-        if (card) card.className = 'card-item running';
+        if (card) card.className = 'quest-row-item running';
     }
 }
 
@@ -231,12 +230,12 @@ async function doStart() {
     if (running) return;
 
     const selectedIds = [];
-    document.querySelectorAll('.card-item input[type="checkbox"]:checked:not(:disabled)').forEach(cb => {
+    document.querySelectorAll('.quest-row-item input[type="checkbox"]:checked:not(:disabled)').forEach(cb => {
         selectedIds.push(cb.id.replace('cb-', ''));
     });
 
     if (!selectedIds.length) {
-        addLog('No missions selected.', 'warn');
+        addLog('No target missions specified.', 'warn');
         return;
     }
 
@@ -247,8 +246,8 @@ async function doStart() {
     $('refreshBtn').disabled = true;
     $('connectBtn').disabled = true;
 
-    addLog(`Executing queue: ${selectedIds.length} mission(s)...`, 'info');
-    setStatus(`Processing ${selectedIds.length} mission(s)...`, 'busy');
+    addLog(`Initiating sequence for ${selectedIds.length} mission(s)...`, 'info');
+    setStatus(`Executing [${selectedIds.length}] tasks`, 'busy');
 
     const selected = questsRaw.filter(q => selectedIds.includes(q.id));
 
@@ -256,7 +255,7 @@ async function doStart() {
         if (stopFlag) break;
 
         if (!quest.is_enrolled) {
-            addLog(`Auto-enrolling: ${quest.name}`, 'info');
+            addLog(`Auto-enrolling task: ${quest.name}`, 'info');
             try {
                 const res = await fetch('/api/enroll', {
                     method: 'POST',
@@ -271,17 +270,17 @@ async function doStart() {
                 });
                 const d = await res.json();
                 if (!d.ok) {
-                    addLog(`Enrollment failed: ${quest.name}`, 'error');
+                    addLog(`Enrollment failed for: ${quest.name}`, 'error');
                     continue;
                 }
                 await sleep(1500);
             } catch (e) {
-                addLog(`Enroll error: ${e.message}`, 'error');
+                addLog(`Enrollment exception: ${e.message}`, 'error');
                 continue;
             }
         }
 
-        addLog(`Started: ${quest.name}`, 'info');
+        addLog(`Processing: ${quest.name}`, 'info');
 
         if (quest.task_type === 'WATCH_VIDEO' || quest.task_type === 'WATCH_VIDEO_ON_MOBILE') {
             await runVideo(quest);
@@ -297,8 +296,8 @@ async function doStart() {
     $('stopBtn').disabled = true;
     $('refreshBtn').disabled = false;
     $('connectBtn').disabled = false;
-    setStatus('Execution completed', 'active');
-    addLog('Queue processing finished.', 'ok');
+    setStatus('Sequence Finished', 'active');
+    addLog('Execution completed.', 'ok');
 }
 
 async function runVideo(quest) {
@@ -308,7 +307,7 @@ async function runVideo(quest) {
     const step = 6.5;
 
     while (done < needed && !stopFlag) {
-        const nextTs = Math.min(needed, done + step + (Math.random() * 0.5));
+        const nextTs = Math.min(needed, done + step + (Math.random() * 0.4));
         
         try {
             const res = await fetch('/api/video-progress', {
@@ -325,7 +324,7 @@ async function runVideo(quest) {
             if (res.status === 429) {
                 const d = await res.json();
                 const wait = (d.retry_after || 5) * 1000 + 1000;
-                addLog(`Rate limited. Backing off ${d.retry_after || 5}s...`, 'warn');
+                addLog(`Rate limited by Discord. Backing off ${d.retry_after || 5}s...`, 'warn');
                 await sleep(wait);
                 continue;
             }
@@ -354,7 +353,7 @@ async function runVideo(quest) {
                 addLog(`Progress rejection: ${d.error || res.status}`, 'error');
             }
         } catch (e) {
-            addLog(`Stream error: ${e.message}`, 'error');
+            addLog(`Stream exception: ${e.message}`, 'error');
         }
 
         await sleep(2000);
@@ -499,6 +498,6 @@ async function runActivity(quest) {
 
 function doStop() {
     stopFlag = true;
-    addLog('Execution cancelled by user.', 'warn');
+    addLog('Signal interrupt sent.', 'warn');
     $('stopBtn').disabled = true;
 }
