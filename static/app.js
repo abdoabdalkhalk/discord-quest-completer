@@ -8,40 +8,27 @@ const $ = (id) => document.getElementById(id);
 
 function toggleToken() {
     const inp = $('tokenInput');
-    inp.type = inp.type === 'password' ? 'text' : 'password';
+    const btn = $('showBtn');
+    if (inp.type === 'password') { inp.type = 'text'; btn.textContent = 'Hide'; }
+    else { inp.type = 'password'; btn.textContent = 'Show'; }
 }
 
-function setStatus(text, mode) {
-    const pulse = $('statusPulse');
-    const label = $('statusText');
-    pulse.className = 'dock-status-pulse';
-    
-    if (mode === 'active') pulse.classList.add('active');
-    else if (mode === 'busy') pulse.classList.add('busy');
-    else if (mode === 'error') pulse.classList.add('error');
-    
-    label.textContent = text;
+function setStatus(text, color) {
+    const c = color || '#6a6f7a';
+    $('statusDot').style.color = c;
+    $('statusText').style.color = c;
+    $('statusText').textContent = text;
 }
 
-function addLog(msg, level = 'info') {
+function addLog(msg, level) {
     const box = $('logBox');
     const ts = new Date().toLocaleTimeString('en-GB', { hour12: false });
-    const line = document.createElement('div');
-    line.className = 'log-entry';
-    
-    line.innerHTML = `
-        <span class="log-time">${ts}</span>
-        <span class="log-level ${level}">${level.toUpperCase()}</span>
-        <span class="log-msg">${escHtml(msg)}</span>
-    `;
-    
-    box.appendChild(line);
+    const cls = 'log-' + (level || 'info');
+    box.innerHTML += `<div class="log-entry"><span class="log-time">${ts}</span> <span class="${cls}">${escHtml(msg)}</span></div>`;
     box.scrollTop = box.scrollHeight;
 }
 
-function clearLog() {
-    $('logBox').innerHTML = '';
-}
+function clearLog() { $('logBox').innerHTML = ''; }
 
 function escHtml(s) {
     const d = document.createElement('div');
@@ -49,21 +36,17 @@ function escHtml(s) {
     return d.innerHTML;
 }
 
-function sleep(ms) {
-    return new Promise(r => setTimeout(r, ms));
-}
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function doConnect() {
     token = $('tokenInput').value.trim();
-    if (!token) {
-        addLog('Token parameter missing.', 'error');
-        return;
-    }
+    if (!token) { addLog('Token is empty.', 'error'); return; }
 
     const btn = $('connectBtn');
     btn.disabled = true;
-    setStatus('Establishing handshake...', 'busy');
-    addLog('Connecting to Discord REST Gateway...');
+    btn.textContent = 'Connecting...';
+    setStatus('Connecting...', '#f0b232');
+    addLog('Connecting...');
 
     try {
         const res = await fetch('/api/connect', {
@@ -75,35 +58,30 @@ async function doConnect() {
 
         if (data.ok) {
             buildNumber = data.build_number;
-            addLog(`Authenticated as ${data.user.username} (${data.user.id})`, 'ok');
-            addLog(`Client Target Build: ${buildNumber}`, 'info');
-            
+            addLog(`Logged in as ${data.user.username} (${data.user.id})`, 'ok');
+            addLog(`Build: ${buildNumber}`);
             const pill = $('userPill');
-            pill.querySelector('.user-name-text').textContent = data.user.username;
+            pill.textContent = data.user.username;
             pill.classList.add('connected');
-            
-            setStatus('Gateway Connected', 'active');
+            setStatus('Connected', '#3ba55d');
             await doRefresh();
         } else {
-            addLog(data.error || 'Handshake rejected.', 'error');
-            setStatus('Connection Rejected', 'error');
+            addLog(data.error || 'Connection failed.', 'error');
+            setStatus('Failed', '#ed4245');
         }
     } catch (e) {
-        addLog(`Network fault: ${e.message}`, 'error');
-        setStatus('Network Fault', 'error');
+        addLog('Network error: ' + e.message, 'error');
+        setStatus('Error', '#ed4245');
     }
 
     btn.disabled = false;
+    btn.textContent = 'Connect';
 }
 
 async function doRefresh() {
-    if (!token) {
-        addLog('Session not initialized.', 'warn');
-        return;
-    }
-    
+    if (!token) { addLog('Not connected.', 'warn'); return; }
     $('refreshBtn').disabled = true;
-    setStatus('Synchronizing quest schema...', 'busy');
+    setStatus('Loading quests...', '#f0b232');
 
     try {
         const res = await fetch('/api/quests', {
@@ -121,35 +99,25 @@ async function doRefresh() {
 
             const available = data.quests.filter(q => !q.is_completed && q.is_completable);
             renderQuests(available);
-            setStatus(`Synced · ${available.length} executable`, 'active');
+            setStatus(`Ready — ${available.length} available`, '#3ba55d');
             $('startBtn').disabled = available.length === 0;
         } else {
-            addLog(data.error || 'Failed to parse quest schema.', 'error');
-            setStatus('Sync Failed', 'error');
+            addLog(data.error || 'Failed.', 'error');
         }
     } catch (e) {
-        addLog(`Sync error: ${e.message}`, 'error');
-        setStatus('Sync Fault', 'error');
+        addLog('Error: ' + e.message, 'error');
     }
 
     $('refreshBtn').disabled = false;
 }
 
 function renderQuests(quests) {
-    const deck = $('questScroll');
-    deck.innerHTML = '';
-    $('questCountBadge').textContent = quests.length;
+    const c = $('questScroll');
+    c.innerHTML = '';
+    $('questHeader').textContent = `QUESTS  ·  ${quests.length} available`;
 
     if (!quests.length) {
-        deck.innerHTML = `
-            <div class="empty-state-canvas">
-                <div class="empty-icon-ring">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                </div>
-                <p class="empty-lead">All tasks completed</p>
-                <p class="empty-sub">No pending missions available for this account</p>
-            </div>
-        `;
+        c.innerHTML = '<div class="empty-msg">No available quests.</div>';
         return;
     }
 
@@ -160,39 +128,42 @@ function renderQuests(quests) {
             try {
                 const days = Math.floor((new Date(q.expires_at) - new Date()) / 86400000);
                 if (days >= 0) {
-                    expHtml = `<span class="timer-tag">· ${days}d left</span>`;
+                    let col = '#6a6f7a';
+                    if (days < 2) col = '#ed4245';
+                    else if (days < 5) col = '#f0b232';
+                    expHtml = `<span class="quest-exp" style="color:${col}">· ${days}d left</span>`;
                 }
             } catch (e) {}
         }
 
         const card = document.createElement('div');
-        card.className = 'quest-row-item';
+        card.className = 'quest-card';
         card.id = `card-${q.id}`;
         card.innerHTML = `
-            <input type="checkbox" checked class="custom-checkbox" id="cb-${q.id}">
-            <div class="quest-core">
-                <div class="quest-title-line">${escHtml(q.name)}</div>
-                <div class="quest-tags-line">
-                    <span class="type-tag" style="color:${q.task_color}; background:${q.task_color}18; border:1px solid ${q.task_color}35">${escHtml(q.task_label)}</span>
-                    ${mins ? `<span class="timer-tag">${mins} min</span>` : ''}
+            <input type="checkbox" checked id="cb-${q.id}">
+            <div class="quest-info">
+                <div class="quest-name">${escHtml(q.name)}</div>
+                <div class="quest-meta">
+                    <span class="quest-badge" style="color:${q.task_color}">${escHtml(q.task_label)}</span>
+                    ${mins ? `<span class="quest-dur">${mins} min</span>` : ''}
                     ${expHtml}
                 </div>
             </div>
-            <div class="quest-aside">
-                <span class="progress-indicator-text" id="status-${q.id}">Pending</span>
-                <div class="progress-track-bg"><div class="progress-fill-bar" id="pbar-${q.id}"></div></div>
+            <div class="quest-right">
+                <span class="quest-status" id="status-${q.id}">Pending</span>
+                <div class="quest-pbar"><div class="quest-pbar-fill" id="pbar-${q.id}"></div></div>
             </div>
         `;
-        deck.appendChild(card);
+        c.appendChild(card);
     });
 }
 
 function selectAll() {
-    document.querySelectorAll('.quest-row-item input[type="checkbox"]:not(:disabled)').forEach(cb => cb.checked = true);
+    document.querySelectorAll('.quest-card input[type="checkbox"]:not(:disabled)').forEach(cb => cb.checked = true);
 }
 
 function deselectAll() {
-    document.querySelectorAll('.quest-row-item input[type="checkbox"]').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.quest-card input[type="checkbox"]').forEach(cb => cb.checked = false);
 }
 
 function updateCardProgress(qid, done, total) {
@@ -205,24 +176,15 @@ function updateCardProgress(qid, done, total) {
     pbar.style.width = pct + '%';
 
     if (done >= total) {
-        pbar.className = 'progress-fill-bar done';
-        if (status) {
-            status.textContent = 'Completed (100%)';
-            status.className = 'progress-indicator-text done';
-        }
-        if (card) card.className = 'quest-row-item done';
+        pbar.className = 'quest-pbar-fill done';
+        if (status) { status.textContent = 'Completed'; status.className = 'quest-status done'; }
+        if (card) card.className = 'quest-card done';
         const cb = document.getElementById(`cb-${qid}`);
-        if (cb) {
-            cb.checked = false;
-            cb.disabled = true;
-        }
+        if (cb) { cb.checked = false; cb.disabled = true; }
     } else {
-        pbar.className = 'progress-fill-bar running';
-        if (status) {
-            status.textContent = `${Math.floor(done)}/${Math.floor(total)}s`;
-            status.className = 'progress-indicator-text running';
-        }
-        if (card) card.className = 'quest-row-item running';
+        pbar.className = 'quest-pbar-fill running';
+        if (status) { status.textContent = `${Math.floor(done)}/${Math.floor(total)}s`; status.className = 'quest-status running'; }
+        if (card) card.className = 'quest-card running';
     }
 }
 
@@ -230,14 +192,11 @@ async function doStart() {
     if (running) return;
 
     const selectedIds = [];
-    document.querySelectorAll('.quest-row-item input[type="checkbox"]:checked:not(:disabled)').forEach(cb => {
+    document.querySelectorAll('.quest-card input[type="checkbox"]:checked:not(:disabled)').forEach(cb => {
         selectedIds.push(cb.id.replace('cb-', ''));
     });
 
-    if (!selectedIds.length) {
-        addLog('No target missions specified.', 'warn');
-        return;
-    }
+    if (!selectedIds.length) { addLog('No quests selected.', 'warn'); return; }
 
     running = true;
     stopFlag = false;
@@ -246,8 +205,8 @@ async function doStart() {
     $('refreshBtn').disabled = true;
     $('connectBtn').disabled = true;
 
-    addLog(`Initiating sequence for ${selectedIds.length} mission(s)...`, 'info');
-    setStatus(`Executing [${selectedIds.length}] tasks`, 'busy');
+    addLog(`Starting ${selectedIds.length} quest(s)...`);
+    setStatus(`Running ${selectedIds.length} quest(s)...`, '#f0b232');
 
     const selected = questsRaw.filter(q => selectedIds.includes(q.id));
 
@@ -255,32 +214,29 @@ async function doStart() {
         if (stopFlag) break;
 
         if (!quest.is_enrolled) {
-            addLog(`Auto-enrolling task: ${quest.name}`, 'info');
+            addLog(`Enrolling: ${quest.name}`);
             try {
                 const res = await fetch('/api/enroll', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        token,
-                        build_number: buildNumber,
+                        token, build_number: buildNumber,
                         quest_id: quest.id,
                         traffic_metadata_raw: quest.traffic_metadata_raw,
                         traffic_metadata_sealed: quest.traffic_metadata_sealed,
                     }),
                 });
                 const d = await res.json();
-                if (!d.ok) {
-                    addLog(`Enrollment failed for: ${quest.name}`, 'error');
-                    continue;
-                }
-                await sleep(1500);
+                if (!d.ok) { addLog(`Failed to enroll: ${quest.name}`, 'error'); continue; }
+                await sleep(2000);
             } catch (e) {
-                addLog(`Enrollment exception: ${e.message}`, 'error');
+                addLog(`Enroll error: ${e.message}`, 'error');
                 continue;
             }
         }
 
-        addLog(`Processing: ${quest.name}`, 'info');
+        if (stopFlag) break;
+        addLog(`Starting: ${quest.name}`);
 
         if (quest.task_type === 'WATCH_VIDEO' || quest.task_type === 'WATCH_VIDEO_ON_MOBILE') {
             await runVideo(quest);
@@ -296,36 +252,38 @@ async function doStart() {
     $('stopBtn').disabled = true;
     $('refreshBtn').disabled = false;
     $('connectBtn').disabled = false;
-    setStatus('Sequence Finished', 'active');
-    addLog('Execution completed.', 'ok');
+
+    if (stopFlag) {
+        setStatus('Stopped by user', '#ed4245');
+        addLog('Process aborted.', 'warn');
+    } else {
+        setStatus('All tasks finished', '#3ba55d');
+        addLog('Done.', 'ok');
+    }
 }
 
 async function runVideo(quest) {
     const qid = quest.id;
     const needed = Number(quest.seconds_needed) || 0;
     let done = Number(quest.seconds_done) || 0;
-    const step = 6.5;
+    const speed = 7;
 
-    while (done < needed && !stopFlag) {
-        const nextTs = Math.min(needed, done + step + (Math.random() * 0.4));
-        
+    while (done < needed) {
+        if (stopFlag) return;
+
+        const nextTs = Math.min(needed, done + speed + (Math.random() * 0.4));
         try {
             const res = await fetch('/api/video-progress', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    token,
-                    build_number: buildNumber,
-                    quest_id: qid,
-                    timestamp: Number(nextTs.toFixed(2)),
-                }),
+                body: JSON.stringify({ token, build_number: buildNumber, quest_id: qid, timestamp: Number(nextTs.toFixed(2)) }),
             });
+
+            if (stopFlag) return;
 
             if (res.status === 429) {
                 const d = await res.json();
-                const wait = (d.retry_after || 5) * 1000 + 1000;
-                addLog(`Rate limited by Discord. Backing off ${d.retry_after || 5}s...`, 'warn');
-                await sleep(wait);
+                await sleep((d.retry_after || 5) * 1000 + 1000);
                 continue;
             }
 
@@ -346,34 +304,32 @@ async function runVideo(quest) {
 
                 if (userStatus.completed_at || respData.completed_at || done >= needed) {
                     updateCardProgress(qid, needed, needed);
-                    addLog(`Completed 100%: ${quest.name}`, 'ok');
+                    addLog(`Completed: ${quest.name}`, 'ok');
                     return;
                 }
             } else {
-                addLog(`Progress rejection: ${d.error || res.status}`, 'error');
+                addLog(`Progress error: ${d.error || res.status}`, 'error');
             }
         } catch (e) {
-            addLog(`Stream exception: ${e.message}`, 'error');
+            addLog(`Error: ${e.message}`, 'error');
         }
 
-        await sleep(2000);
+        if (stopFlag) return;
+        await sleep(1500);
     }
+
+    if (stopFlag) return;
 
     try {
         const finalRes = await fetch('/api/video-progress', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                token,
-                build_number: buildNumber,
-                quest_id: qid,
-                timestamp: needed,
-            }),
+            body: JSON.stringify({ token, build_number: buildNumber, quest_id: qid, timestamp: needed }),
         });
         const finalData = await finalRes.json();
-        if (finalData.ok) {
+        if (finalData.ok && !stopFlag) {
             updateCardProgress(qid, needed, needed);
-            addLog(`Completed 100%: ${quest.name}`, 'ok');
+            addLog(`Completed: ${quest.name}`, 'ok');
         }
     } catch (e) {}
 }
@@ -386,19 +342,17 @@ async function runHeartbeat(quest) {
     const pid = Math.floor(Math.random() * 29000) + 1000;
     const sk = `call:0:${pid}`;
 
-    while (done < needed && !stopFlag) {
+    while (done < needed) {
+        if (stopFlag) return;
+
         try {
             const res = await fetch('/api/heartbeat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    token,
-                    build_number: buildNumber,
-                    quest_id: qid,
-                    stream_key: sk,
-                    terminal: false
-                }),
+                body: JSON.stringify({ token, build_number: buildNumber, quest_id: qid, stream_key: sk, terminal: false }),
             });
+
+            if (stopFlag) return;
 
             if (res.status === 429) {
                 const d = await res.json();
@@ -411,31 +365,32 @@ async function runHeartbeat(quest) {
                 const pd = d.data.progress || {};
                 if (pd[tt]) done = pd[tt].value || done;
                 updateCardProgress(qid, done, needed);
-                if (d.data.completed_at || done >= needed) break;
+                if (d.data.completed_at || done >= needed) {
+                    break;
+                }
             }
         } catch (e) {
-            addLog(`Heartbeat error: ${e.message}`, 'error');
+            addLog(`Error: ${e.message}`, 'error');
         }
 
-        if (!stopFlag) await sleep(20000);
+        if (stopFlag) return;
+        await sleep(20000);
     }
+
+    if (stopFlag) return;
 
     try {
         await fetch('/api/heartbeat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                token,
-                build_number: buildNumber,
-                quest_id: qid,
-                stream_key: sk,
-                terminal: true
-            }),
+            body: JSON.stringify({ token, build_number: buildNumber, quest_id: qid, stream_key: sk, terminal: true }),
         });
     } catch (e) {}
 
-    updateCardProgress(qid, needed, needed);
-    addLog(`Completed: ${quest.name}`, 'ok');
+    if (!stopFlag) {
+        updateCardProgress(qid, needed, needed);
+        addLog(`Completed: ${quest.name}`, 'ok');
+    }
 }
 
 async function runActivity(quest) {
@@ -444,19 +399,17 @@ async function runActivity(quest) {
     let done = quest.seconds_done || 0;
     const sk = 'call:0:1';
 
-    while (done < needed && !stopFlag) {
+    while (done < needed) {
+        if (stopFlag) return;
+
         try {
             const res = await fetch('/api/heartbeat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    token,
-                    build_number: buildNumber,
-                    quest_id: qid,
-                    stream_key: sk,
-                    terminal: false
-                }),
+                body: JSON.stringify({ token, build_number: buildNumber, quest_id: qid, stream_key: sk, terminal: false }),
             });
+
+            if (stopFlag) return;
 
             if (res.status === 429) {
                 const d = await res.json();
@@ -469,35 +422,36 @@ async function runActivity(quest) {
                 const pd = d.data.progress || {};
                 if (pd.PLAY_ACTIVITY) done = pd.PLAY_ACTIVITY.value || done;
                 updateCardProgress(qid, done, needed);
-                if (d.data.completed_at || done >= needed) break;
+                if (d.data.completed_at || done >= needed) {
+                    break;
+                }
             }
         } catch (e) {
-            addLog(`Activity error: ${e.message}`, 'error');
+            addLog(`Error: ${e.message}`, 'error');
         }
 
-        if (!stopFlag) await sleep(20000);
+        if (stopFlag) return;
+        await sleep(20000);
     }
+
+    if (stopFlag) return;
 
     try {
         await fetch('/api/heartbeat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                token,
-                build_number: buildNumber,
-                quest_id: qid,
-                stream_key: sk,
-                terminal: true
-            }),
+            body: JSON.stringify({ token, build_number: buildNumber, quest_id: qid, stream_key: sk, terminal: true }),
         });
     } catch (e) {}
 
-    updateCardProgress(qid, needed, needed);
-    addLog(`Completed: ${quest.name}`, 'ok');
+    if (!stopFlag) {
+        updateCardProgress(qid, needed, needed);
+        addLog(`Completed: ${quest.name}`, 'ok');
+    }
 }
 
 function doStop() {
     stopFlag = true;
-    addLog('Signal interrupt sent.', 'warn');
+    addLog('Stopping...', 'warn');
     $('stopBtn').disabled = true;
 }
