@@ -4,6 +4,8 @@ let questsRaw = [];
 let running = false;
 let stopFlag = false;
 
+const TOKEN_SNIPPET = "(w=webpackChunkdiscord_app).push([[Symbol()],{},o=>{try{Object.values(o.c).some(e=>e.exports?.setToken&&(w.t=e.exports.getToken()))}catch{}}]),w.t";
+
 const $ = (id) => document.getElementById(id);
 
 function toggleToken() {
@@ -37,6 +39,47 @@ function escHtml(s) {
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function openTokenModal() {
+    $('tokenSnippet').textContent = TOKEN_SNIPPET;
+    $('tokenModal').classList.add('open');
+}
+
+function closeTokenModal() {
+    $('tokenModal').classList.remove('open');
+}
+
+async function copySnippet() {
+    const btn = $('copySnippetBtn');
+    const old = btn.textContent;
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(TOKEN_SNIPPET);
+        } else {
+            const ta = document.createElement('textarea');
+            ta.value = TOKEN_SNIPPET;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+        }
+        btn.textContent = 'Copied';
+        setTimeout(() => { btn.textContent = old; }, 1200);
+    } catch (e) {
+        addLog('Copy failed: ' + e.message, 'error');
+    }
+}
+
+document.addEventListener('click', (e) => {
+    const m = $('tokenModal');
+    if (m && e.target === m) closeTokenModal();
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeTokenModal();
+});
 
 async function doConnect() {
     token = $('tokenInput').value.trim();

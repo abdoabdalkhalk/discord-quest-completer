@@ -29,6 +29,7 @@
                 <button class="btn ghost" id="showBtn" onclick="toggleToken()">Show</button>
                 <button class="btn primary" id="connectBtn" onclick="doConnect()">Connect</button>
             </div>
+            <button class="btn ghost full-w" id="tokenHelpBtn" onclick="openTokenModal()">How to Get Token</button>
 
             <div class="spacer-8"></div>
             <div class="divider-h"></div>
@@ -80,6 +81,23 @@
             <button class="btn ghost small" onclick="clearLog()">Clear Log</button>
             <button class="btn danger small" id="stopBtn" onclick="doStop()" disabled>Stop</button>
             <button class="btn primary small" id="startBtn" onclick="doStart()" disabled>Run Selected</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="tokenModal">
+        <div class="modal">
+            <div class="modal-head">
+                <span class="modal-title">How to Get Your Token</span>
+                <button class="btn ghost small" onclick="closeTokenModal()">Close</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-step">1. Open discord.com/app in your browser and press F12.</div>
+                <div class="modal-step">2. Switch to the Console tab.</div>
+                <div class="modal-step">3. Paste the snippet below and press Enter.</div>
+                <pre class="snippet-box" id="tokenSnippet"></pre>
+                <button class="btn primary full-w" id="copySnippetBtn" onclick="copySnippet()">Copy Snippet</button>
+                <div class="modal-step">4. Copy the returned token and paste it into the Token field.</div>
+            </div>
         </div>
     </div>
 
