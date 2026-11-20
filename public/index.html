@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quest Completer</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="titlebar">
+        <h1 class="title">Quest Completer</h1>
+        <div class="user-pill" id="userPill">Not connected</div>
+    </div>
+    <div class="divider-h"></div>
+
+    <div class="body-wrap">
+        <aside class="left-panel">
+            <div class="section-label">TOKEN</div>
+            <input type="password" id="tokenInput" class="token-input" placeholder="Paste your token..." autocomplete="off">
+            <div class="btn-row">
+                <button class="btn ghost" id="showBtn" onclick="toggleToken()">Show</button>
+                <button class="btn primary" id="connectBtn" onclick="doConnect()">Connect</button>
+            </div>
+
+            <div class="section-label">SUPER PROPERTIES (Desktop App)</div>
+            <input type="password" id="spInput" class="token-input" placeholder="Paste SP captured from the Discord desktop app..." autocomplete="off">
+
+            <button class="btn ghost full-w" id="tokenHelpBtn" onclick="openTokenModal()">How to Get Token + SP</button>
+
+            <div class="divider-h my-8"></div>
+
+            <div class="section-label">STATISTICS</div>
+            <div class="stat-row"><span class="stat-label">Total quests</span><span class="stat-value" id="statTotal">—</span></div>
+            <div class="stat-row"><span class="stat-label">Available</span><span class="stat-value" id="statAvail">—</span></div>
+            <div class="stat-row"><span class="stat-label">Completed</span><span class="stat-value" id="statDone">—</span></div>
+
+            <div class="flex-grow"></div>
+            <div class="divider-h my-8"></div>
+
+            <div class="section-label">SELECTION</div>
+            <div class="btn-row">
+                <button class="btn ghost" onclick="selectAll()">Select All</button>
+                <button class="btn ghost" onclick="deselectAll()">Clear</button>
+            </div>
+            <button class="btn ghost full-w" id="refreshBtn" onclick="doRefresh()">Refresh Quests</button>
+        </aside>
+
+        <div class="divider-v"></div>
+
+        <main class="right-panel">
+            <div class="section-header">
+                <div class="section-label" id="questHeader">QUESTS</div>
+            </div>
+            <div class="quest-scroll" id="questScroll">
+                <div class="empty-msg">Connect and refresh to load quests.</div>
+            </div>
+            <div class="divider-h"></div>
+            <div class="section-header">
+                <div class="section-label">LOG</div>
+            </div>
+            <div class="log-box" id="logBox"></div>
+        </main>
+    </div>
+
+    <div class="divider-h"></div>
+
+    <div class="statusbar">
+        <div class="statusbar-left">
+            <span class="status-dot" id="statusDot">●</span>
+            <span class="status-text" id="statusText">Idle</span>
+        </div>
+        <div class="statusbar-right">
+            <button class="btn ghost small" onclick="clearLog()">Clear Log</button>
+            <button class="btn danger small" id="stopBtn" onclick="doStop()" disabled>Stop</button>
+            <button class="btn primary small" id="startBtn" onclick="doStart()" disabled>Run Selected</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="tokenModal">
+        <div class="modal">
+            <div class="modal-head">
+                <span class="modal-title">How to Get Token + SP</span>
+                <button class="btn ghost small" onclick="closeTokenModal()">Close</button>
+            </div>
+            <div class="modal-body">
+
+                <div class="modal-section-title">Step 1 — Enable DevTools (one-time per Discord install)</div>
+
+                <div class="modal-step">1. Close Discord completely (Task Manager → End task on every Discord process).</div>
+
+                <div class="modal-step">2. Open <b>PowerShell</b> and paste this single line, then press Enter.</div>
+
+                <pre class="snippet-box" id="devtoolsOneLiner"></pre>
+
+                <button class="btn primary full-w" id="copyDevtoolsBtn" onclick="copyDevtoolsOneLiner()">Copy Command</button>
+
+                <div class="modal-step">3. Start Discord and press <code>Ctrl+Shift+I</code>. DevTools must open.</div>
+
+                <div class="modal-step">For Canary / PTB, download the script, edit the first line, and run it locally.</div>
+
+                <div class="divider-h my-8"></div>
+
+                <div class="modal-section-title">Step 2 — Get Token + Super Properties</div>
+
+                <div class="modal-step">1. With DevTools open, switch to the <b>Console</b> tab.</div>
+                <div class="modal-step">2. Paste the snippet below and press Enter.</div>
+
+                <pre class="snippet-box" id="tokenSnippet"></pre>
+
+                <button class="btn primary full-w" id="copySnippetBtn" onclick="copySnippet()">Copy Snippet</button>
+
+                <div class="modal-step">3. Copy the value after <b>TOKEN:</b> into the Token field.</div>
+                <div class="modal-step">4. Copy the value after <b>SP:</b> into the Super Properties field.</div>
+                <div class="modal-step">Browser SP values are rejected — only SP from the Discord desktop app works.</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

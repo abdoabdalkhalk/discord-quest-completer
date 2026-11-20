@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "api/index.py", "use": "@vercel/python" },
+    { "src": "api/solve.js", "use": "@vercel/node" },
+    { "src": "public/**", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/api/solve", "dest": "/api/solve.js" },
+    { "src": "/api/(.*)", "dest": "/api/index.py" },
+    { "src": "/static/(.*)", "dest": "/public/static/$1" },
+    { "src": "/", "dest": "/public/index.html" }
+  ]
+}
